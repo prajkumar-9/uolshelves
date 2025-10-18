@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>UOL SHELVES — Student Hub</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: { extend: { colors: { primary: '#0f172a', accent: '#3b82f6' } } }
+    };
+  </script>
+  <style>
+    html,body{height:100%}
+    body{font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
+    .sidebar{transition:transform .25s ease}
+    .popup{display:none;position:fixed;inset:0;background:rgba(2,6,23,.75);z-index:50;place-items:center}
+    .popup.show{display:grid}
+    .chat-messages{max-height:320px;overflow:auto}
+  </style>
+</head>
+<body class="bg-primary text-white min-h-screen">
+  <!-- Registration Popup -->
+  <div id="registerPopup" class="popup show">
+    <div class="w-full max-w-md bg-gray-900 p-6 rounded-lg shadow-lg">
+      <h2 class="text-2xl font-bold mb-3 text-accent">Register — UOL SHELVES</h2>
+      <p class="mb-4 text-sm text-gray-300">Register first. Admin will email you credentials (simulated). Default student password: <code>student123</code>.</p>
+      <form id="registerForm" class="space-y-3">
+        <input required id="regName" placeholder="Full name" class="w-full p-2 rounded bg-gray-800" />
+        <input required id="regNumber" placeholder="Phone number" class="w-full p-2 rounded bg-gray-800" />
+        <input required id="regEmail" placeholder="Email (will be your username)" type="email" class="w-full p-2 rounded bg-gray-800" />
+        <input required id="regEducation" placeholder="Current education (e.g., 12th Grade)" class="w-full p-2 rounded bg-gray-800" />
+        <div class="flex gap-2">
+          <button type="submit" class="flex-1 bg-accent p-2 rounded">Submit Registration</button>
+          <button type="button" id="openLoginFromReg" class="flex-1 bg-gray-700 p-2 rounded">Already have login</button>
+        </div>
+      </form>
+      <p class="text-xs text-gray-400 mt-3">Note: This is just a platform to view your daily updates of our UOL program.</p>
+    </div>
+  </div>
+
+  <!-- Login Popup -->
+  <div id="loginPopup" class="popup">
+    <div class="w-full max-w-md bg-gray-900 p-6 rounded-lg shadow-lg">
+      <h2 class="text-2xl font-bold mb-3 text-accent">Login</h2>
+      <form id="loginForm" class="space-y-3">
+        <input required id="loginUsername" placeholder="Email / username" class="w-full p-2 rounded bg-gray-800" />
+        <input required id="loginPassword" placeholder="Password" type="password" class="w-full p-2 rounded bg-gray-800" />
+        <div class="flex gap-2">
+          <button class="flex-1 bg-accent p-2 rounded">Login</button>
+          <button id="openRegisterFromLogin" type="button" class="flex-1 bg-gray-700 p-2 rounded">Register</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="flex items-center justify-between px-6 py-4 bg-gray-800 border-b border-gray-700">
+    <div class="flex items-center gap-3">
+      <button id="toggleSidebar" class="md:hidden px-2 py-1 bg-gray-700 rounded">☰</button>
+      <h1 class="text-xl font-bold text-accent">UOL SHELVES</h1>
+      <span class="text-sm text-gray-400">— Student Hub</span>
+    </div>
+    <div class="flex items-center gap-3">
+      <button id="themeToggle" class="px-3 py-1 bg-gray-700 rounded">Toggle theme</button>
+      <button id="logoutBtn" class="hidden px-3 py-1 bg-red-600 rounded">Logout</button>
+    </div>
+  </header>
+
+  <div class="flex">
+    <!-- Sidebar -->
+    <aside id="sidebar" class="sidebar hidden md:block w-72 bg-gray-900 min-h-[calc(100vh-64px)] p-4">
+      <nav class="space-y-2 text-sm">
+        <a href="#dashboard" class="block p-2 rounded hover:bg-accent/20" data-section="dashboard">Dashboard</a>
+        <a href="#assignments" class="block p-2 rounded hover:bg-accent/20" data-section="assignments">Assignments</a>
+        <a href="#notes" class="block p-2 rounded hover:bg-accent/20" data-section="notes">Notes / Syllabus</a>
+        <a href="#questions" class="block p-2 rounded hover:bg-accent/20" data-section="questions">Important Questions</a>
+        <a href="#study" class="block p-2 rounded hover:bg-accent/20" data-section="study">What to Study Today</a>
+        <a href="#where" class="block p-2 rounded hover:bg-accent/20" data-section="where">Where to Study</a>
+        <a href="#deadlines" class="block p-2 rounded hover:bg-accent/20" data-section="deadlines">Deadlines</a>
+        <a href="#meetings" class="block p-2 rounded hover:bg-accent/20" data-section="meetings">Meetings</a>
+        <a href="#tutors" id="tutorsLink" class="hidden block p-2 rounded hover:bg-accent/20" data-section="tutors">Assign Tutors</a>
+        <a href="#chat" class="block p-2 rounded hover:bg-accent/20" data-section="chat">Chat</a>
+      </nav>
+    </aside>
+
+    <!-- Main -->
+    <main id="mainContent" class="flex-1 p-6 hidden">
+      <!-- Dashboard -->
+      <section id="dashboard" class="section">
+        <button id="downloadPdf" class="mt-3 bg-accent px-3 py-2 rounded text-white">Download Dashboard PDF</button>
+        <div class="flex items-center justify-between">
+          <h2 class="text-2xl font-semibold">Dashboard</h2>
+          <div id="adminActions" class="hidden space-x-2">
+            <button id="editSiteBtn" class="bg-accent px-3 py-1 rounded">Edit Site Data</button>
+          </div>
+        </div>
+
+        <div id="studentDetails" class="mt-4 bg-gray-800 p-4 rounded">
+          <!-- filled dynamically -->
+        </div>
+
+        <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="bg-gray-800 p-4 rounded">
+            <h3 class="font-semibold">Pending Assignments</h3>
+            <div id="dashboardAssignments" class="mt-2"></div>
+          </div>
+          <div class="bg-gray-800 p-4 rounded">
+            <h3 class="font-semibold">Upcoming Deadlines</h3>
+            <div id="dashboardDeadlines" class="mt-2"></div>
+          </div>
+          <div class="bg-gray-800 p-4 rounded">
+            <h3 class="font-semibold">What to Study Today</h3>
+            <div id="dashboardStudy" class="mt-2"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Assignments -->
+      <section id="assignments" class="section hidden mt-2">
+        <h2 class="text-xl font-semibold">Assignments</h2>
+        <div id="assignmentsContent" class="mt-3 bg-gray-800 p-4 rounded"></div>
+        <div id="editAssignments" class="hidden mt-3 bg-gray-800 p-4 rounded">
+          <textarea id="editAssignmentsText" rows="6" class="w-full p-2 rounded bg-gray-700"></textarea>
+          <div class="mt-2 flex gap-2"><button id="saveAssignments" class="bg-accent p-2 rounded">Save</button><button id="cancelAssignments" class="bg-gray-700 p-2 rounded">Cancel</button></div>
+        </div>
+      </section>
+
+      <!-- Notes -->
+      <section id="notes" class="section hidden mt-2">
+        <h2 class="text-xl font-semibold">Notes / Syllabus</h2>
+        <div id="notesContent" class="mt-3 bg-gray-800 p-4 rounded"></div>
+        <div id="editNotes" class="hidden mt-3 bg-gray-800 p-4 rounded">
+          <textarea id="editNotesText" rows="6" class="w-full p-2 rounded bg-gray-700"></textarea>
+          <div class="mt-2 flex gap-2"><button id="saveNotes" class="bg-accent p-2 rounded">Save</button><button id="cancelNotes" class="bg-gray-700 p-2 rounded">Cancel</button></div>
+        </div>
+      </section>
+
+      <!-- Questions -->
+      <section id="questions" class="section hidden mt-2">
+        <h2 class="text-xl font-semibold">Important Questions</h2>
+        <div id="questionsContent" class="mt-3 bg-gray-800 p-4 rounded"></div>
+        <div id="editQuestions" class="hidden mt-3 bg-gray-800 p-4 rounded">
+          <textarea id="editQuestionsText" rows="6" class="w-full p-2 rounded bg-gray-700"></textarea>
+          <div class="mt-2 flex gap-2"><button id="saveQuestions" class="bg-accent p-2 rounded">Save</button><button id="cancelQuestions" class="bg-gray-700 p-2 rounded">Cancel</button></div>
+        </div>
+      </section>
+
+      <!-- Study -->
+      <section id="study" class="section hidden mt-2">
+        <h2 class="text-xl font-semibold">What to Study Today</h2>
+        <div id="studyContent" class="mt-3 bg-gray-800 p-4 rounded"></div>
+        <div id="editStudy" class="hidden mt-3 bg-gray-800 p-4 rounded">
+          <textarea id="editStudyText" rows="4" class="w-full p-2 rounded bg-gray-700"></textarea>
+          <div class="mt-2 flex gap-2"><button id="saveStudy" class="bg-accent p-2 rounded">Save</button><button id="cancelStudy" class="bg-gray-700 p-2 rounded">Cancel</button></div>
+        </div>
+      </section>
+
+      <!-- Where to study -->
+      <section id="where" class="section hidden mt-2">
+        <h2 class="text-xl font-semibold">Where to Study</h2>
+        <div id="whereContent" class="mt-3 bg-gray-800 p-4 rounded"></div>
+        <div id="editWhere" class="hidden mt-3 bg-gray-800 p-4 rounded">
+          <textarea id="editWhereText" rows="3" class="w-full p-2 rounded bg-gray-700"></textarea>
+          <div class="mt-2 flex gap-2"><button id="saveWhere" class="bg-accent p-2 rounded">Save</button><button id="cancelWhere" class="bg-gray-700 p-2 rounded">Cancel</button></div>
+        </div>
+      </section>
+
+      <!-- Deadlines -->
+      <section id="deadlines" class="section hidden mt-2">
+        <h2 class="text-xl font-semibold">Deadlines</h2>
+        <div id="deadlinesContent" class="mt-3 bg-gray-800 p-4 rounded"></div>
+        <div id="editDeadlines" class="hidden mt-3 bg-gray-800 p-4 rounded">
+          <textarea id="editDeadlinesText" rows="4" class="w-full p-2 rounded bg-gray-700"></textarea>
+          <div class="mt-2 flex gap-2"><button id="saveDeadlines" class="bg-accent p-2 rounded">Save</button><button id="cancelDeadlines" class="bg-gray-700 p-2 rounded">Cancel</button></div>
+        </div>
+      </section>
+
+      <!-- Meetings -->
+      <section id="meetings" class="section hidden mt-2">
+        <h2 class="text-xl font-semibold">Meetings / Google Meet Links</h2>
+        <div id="meetingsContent" class="mt-3 bg-gray-800 p-4 rounded"></div>
+        <div id="editMeetings" class="hidden mt-3 bg-gray-800 p-4 rounded">
+          <textarea id="editMeetingsText" rows="4" class="w-full p-2 rounded bg-gray-700" placeholder='Example: Math Tutor;2025-10-20 15:00;https://meet.google.com/xxx-xxxx-xxx'></textarea>
+          <div class="mt-2 flex gap-2"><button id="saveMeetings" class="bg-accent p-2 rounded">Save</button><button id="cancelMeetings" class="bg-gray-700 p-2 rounded">Cancel</button></div>
+          <p class="text-xs text-gray-400 mt-2">Format: Title;YYYY-MM-DD HH:MM;Google Meet link per line. Admin can add links and schedules.</p>
+        </div>
+      </section>
+
+      <!-- Tutors (Admin only) -->
+      <section id="tutors" class="section hidden mt-2">
+        <h2 class="text-xl font-semibold">Assign Tutors (Admin Only)</h2>
+        <form id="tutorsForm" class="mt-3 bg-gray-800 p-4 rounded">
+          <input id="tutorSubject" class="w-full p-2 rounded bg-gray-700 mb-2" placeholder="Subject (e.g., Math)" required />
+          <input id="tutorName" class="w-full p-2 rounded bg-gray-700 mb-2" placeholder="Tutor (student email)" required />
+          <input id="tutorLearners" class="w-full p-2 rounded bg-gray-700 mb-2" placeholder="Learners (comma-separated emails)" required />
+          <div class="flex gap-2"><button class="bg-accent p-2 rounded">Assign</button><button type="button" id="clearTutors" class="bg-gray-700 p-2 rounded">Clear</button></div>
+        </form>
+        <div id="tutorsList" class="mt-3 bg-gray-800 p-4 rounded"></div>
+      </section>
+
+      <!-- Chat -->
+      <section id="chat" class="section hidden mt-2">
+        <h2 class="text-xl font-semibold">Student Chat</h2>
+        <div class="mt-3 bg-gray-800 p-4 rounded">
+          <div id="chatMessages" class="chat-messages p-2 bg-gray-900 rounded mb-3"></div>
+          <div class="flex gap-2">
+            <input id="chatInput" class="flex-1 p-2 rounded bg-gray-700" placeholder="Type and press Send" />
+            <button id="sendChat" class="bg-accent p-2 rounded">Send</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Edit Site Modal (admin) -->
+      <div id="siteEditor" class="hidden fixed inset-0 z-40 p-6">
+        <div class="mx-auto max-w-3xl bg-gray-900 p-6 rounded shadow-lg">
+          <h3 class="text-lg font-bold mb-3">Site Data Editor</h3>
+          <p class="text-sm text-gray-400 mb-3">Edit each block below. Save when done.</p>
+          <label class="block text-xs text-gray-400">Assignments (HTML allowed)</label>
+          <textarea id="siteAssignments" rows="4" class="w-full p-2 rounded bg-gray-800 mb-3"></textarea>
+          <label class="block text-xs text-gray-400">Notes / Syllabus (HTML allowed)</label>
+          <textarea id="siteNotes" rows="4" class="w-full p-2 rounded bg-gray-800 mb-3"></textarea>
+          <label class="block text-xs text-gray-400">Important Questions (plain list or HTML)</label>
+          <textarea id="siteQuestions" rows="4" class="w-full p-2 rounded bg-gray-800 mb-3"></textarea>
+          <label class="block text-xs text-gray-400">What to Study Today</label>
+          <textarea id="siteStudy" rows="2" class="w-full p-2 rounded bg-gray-800 mb-3"></textarea>
+          <label class="block text-xs text-gray-400">Where to Study</label>
+          <textarea id="siteWhere" rows="2" class="w-full p-2 rounded bg-gray-800 mb-3"></textarea>
+          <label class="block text-xs text-gray-400">Deadlines (one per line)</label>
+          <textarea id="siteDeadlines" rows="3" class="w-full p-2 rounded bg-gray-800 mb-3"></textarea>
+          <label class="block text-xs text-gray-400">Meetings (one per line, format: Title;YYYY-MM-DD HH:MM;link)</label>
+          <textarea id="siteMeetings" rows="4" class="w-full p-2 rounded bg-gray-800 mb-3"></textarea>
+          <div class="flex justify-end gap-2">
+            <button id="saveSiteData" class="bg-accent p-2 rounded">Save site data</button>
+            <button id="closeSiteEditor" class="bg-gray-700 p-2 rounded">Close</button>
+          </div>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script>
+    // ---------- Simple localStorage-based data model ----------
+    const STORAGE_KEY = 'uol_shelves_data_v1';
+    const USERS_KEY = 'uol_shelves_users_v1';
+    const CHAT_KEY = 'uol_shelves_chat_v1';
+
+    // default site data (admin can edit via UI)
+    const defaultSiteData = {
+      assignments: '<ul class="list-disc pl-5"><li>Math: Solve pages 10-12 (Quadratic eq.)</li></ul>',
+      notes: '<a href="#">Syllabus PPT - Chapter 1</a>',
+      questions: '<ul class="list-disc pl-5"><li>What is derivative?</li></ul>',
+      study: 'Review calculus - 2 hours',
+      where: 'Library Room 101',
+      deadlines: 'Project A - 2025-10-25',
+      meetings: 'Math Tutor;2025-10-20 15:00;https://meet.google.com/xxx-xxxx-xxx',
+      tutors: []
+    };
+
+    function loadSiteData(){
+      const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if(!d){ localStorage.setItem(STORAGE_KEY, JSON.stringify(defaultSiteData)); return defaultSiteData; }
+      return d;
+    }
+    function saveSiteData(data){ localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+    // Users store: array of {email,name,phone,education,password,isAdmin}
+    function loadUsers(){
+      const u = JSON.parse(localStorage.getItem(USERS_KEY));
+      if(!u){
+        const seed = [{email:'admin',name:'Admin',phone:'',education:'',password:'admin123',isAdmin:true}];
+        localStorage.setItem(USERS_KEY, JSON.stringify(seed));
+        return seed;
+      }
+      return u;
+    }
+    function saveUsers(users){ localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
+
+    // Chat messages: [{from,fromName,msg,ts}]
+    function loadChat(){ return JSON.parse(localStorage.getItem(CHAT_KEY)) || []; }
+    function saveChat(c){ localStorage.setItem(CHAT_KEY, JSON.stringify(c)); }
+
+    // ---------- App state ----------
+    let siteData = loadSiteData();
+    let users = loadUsers();
+    let chat = loadChat();
+    let currentUser = JSON.parse(localStorage.getItem('uol_current_user')) || null;
+
+    // ---------- Helpers ----------
+    function byId(id){ return document.getElementById(id); }
+    function showSection(name){
+      document.querySelectorAll('.section').forEach(s=>s.classList.add('hidden'));
+      const el = byId(name);
+      if(el) el.classList.remove('hidden');
+      // highlight active link
+      document.querySelectorAll('#sidebar a').forEach(a=> a.classList.remove('bg-accent/30'));
+      const link = document.querySelector('#sidebar a[data-section="'+name+'"]');
+      if(link) link.classList.add('bg-accent/30');
+    }
+
+    // ---------- UI wiring ----------
+    // Sidebar toggle
+    byId('toggleSidebar').addEventListener('click', ()=>{
+      const s = byId('sidebar'); s.classList.toggle('hidden');
+    });
+
+    // Theme toggle
+    byId('themeToggle').addEventListener('click', ()=>{
+      document.documentElement.classList.toggle('dark');
+    });
+
+    // Open login/register toggles
+    byId('openLoginFromReg').addEventListener('click', ()=>{ byId('registerPopup').classList.remove('show'); byId('loginPopup').classList.add('show'); });
+    byId('openRegisterFromLogin').addEventListener('click', ()=>{ byId('loginPopup').classList.remove('show'); byId('registerPopup').classList.add('show'); });
+
+    // Registration
+    byId('registerForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const name = byId('regName').value.trim();
+      const phone = byId('regNumber').value.trim();
+      const email = byId('regEmail').value.trim().toLowerCase();
+      const education = byId('regEducation').value.trim();
+      if(!name||!email){ alert('Please fill required fields'); return; }
+      // check existing
+      if(users.find(u=>u.email===email)){
+        alert('User already registered. Please login.'); byId('registerPopup').classList.remove('show'); byId('loginPopup').classList.add('show'); return;
+      }
+      const newUser = { email, name, phone, education, password:'student123', isAdmin:false };
+      users.push(newUser); saveUsers(users);
+      // simulate admin email to give credentials
+      alert('Registration received. An admin will email your login credentials. (demo: password is student123)');
+      byId('registerPopup').classList.remove('show'); byId('loginPopup').classList.add('show');
+    });
+
+    // Login
+    byId('loginForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const username = byId('loginUsername').value.trim();
+      const password = byId('loginPassword').value.trim();
+      const u = users.find(x=> x.email===username || (x.email==='admin' && username==='admin'));
+      if(!u || u.password !== password){ alert('Invalid credentials'); return; }
+      currentUser = { email: u.email, name: u.name, isAdmin: !!u.isAdmin };
+      localStorage.setItem('uol_current_user', JSON.stringify(currentUser));
+      byId('loginPopup').classList.remove('show');
+      initAfterLogin();
+    });
+
+    // Logout
+    byId('logoutBtn').addEventListener('click', ()=>{ localStorage.removeItem('uol_current_user'); location.reload(); });
+
+    // Sidebar nav links
+    document.querySelectorAll('#sidebar a[data-section]').forEach(a=>{
+      a.addEventListener('click', (e)=>{
+        e.preventDefault(); const sec = a.getAttribute('data-section'); showSection(sec);
+      });
+    });
+
+    // ---------- Admin editing ----------
+    function openSiteEditor(){
+      byId('siteAssignments').value = siteData.assignments;
+      byId('siteNotes').value = siteData.notes;
+      byId('siteQuestions').value = siteData.questions;
+      byId('siteStudy').value = siteData.study;
+      byId('siteWhere').value = siteData.where;
+      byId('siteDeadlines').value = siteData.deadlines;
+      byId('siteMeetings').value = siteData.meetings;
+      byId('siteEditor').classList.remove('hidden');
+    }
+    byId('editSiteBtn').addEventListener('click', openSiteEditor);
+    byId('closeSiteEditor').addEventListener('click', ()=> byId('siteEditor').classList.add('hidden'));
+    byId('saveSiteData').addEventListener('click', ()=>{
+      siteData.assignments = byId('siteAssignments').value;
+      siteData.notes = byId('siteNotes').value;
+      siteData.questions = byId('siteQuestions').value;
+      siteData.study = byId('siteStudy').value;
+      siteData.where = byId('siteWhere').value;
+      siteData.deadlines = byId('siteDeadlines').value;
+      siteData.meetings = byId('siteMeetings').value;
+      saveSiteData(siteData);
+      byId('siteEditor').classList.add('hidden');
+      renderAll();
+      alert('Site data saved');
+    });
+
+    // Per-section quick edit handlers (for convenience)
+    byId('saveAssignments')?.addEventListener('click', ()=>{
+      siteData.assignments = byId('editAssignmentsText').value; saveSiteData(siteData); renderAll(); byId('editAssignments').classList.add('hidden');
+    });
+    byId('saveNotes')?.addEventListener('click', ()=>{ siteData.notes = byId('editNotesText').value; saveSiteData(siteData); renderAll(); byId('editNotes').classList.add('hidden'); });
+    byId('saveQuestions')?.addEventListener('click', ()=>{ siteData.questions = byId('editQuestionsText').value; saveSiteData(siteData); renderAll(); byId('editQuestions').classList.add('hidden'); });
+    byId('saveStudy')?.addEventListener('click', ()=>{ siteData.study = byId('editStudyText').value; saveSiteData(siteData); renderAll(); byId('editStudy').classList.add('hidden'); });
+    byId('saveWhere')?.addEventListener('click', ()=>{ siteData.where = byId('editWhereText').value; saveSiteData(siteData); renderAll(); byId('editWhere').classList.add('hidden'); });
+    byId('saveDeadlines')?.addEventListener('click', ()=>{ siteData.deadlines = byId('editDeadlinesText').value; saveSiteData(siteData); renderAll(); byId('editDeadlines').classList.add('hidden'); });
+    byId('saveMeetings')?.addEventListener('click', ()=>{ siteData.meetings = byId('editMeetingsText').value; saveSiteData(siteData); renderAll(); byId('editMeetings').classList.add('hidden'); });
+
+    // Cancel buttons
+    ['cancelAssignments','cancelNotes','cancelQuestions','cancelStudy','cancelWhere','cancelDeadlines','cancelMeetings'].forEach(id=>{
+      if(byId(id)) byId(id).addEventListener('click', ()=>{ byId(id).closest('div').classList.add('hidden'); });
+    });
+
+    // Tutors form
+    byId('tutorsForm').addEventListener('submit', (e)=>{
+      e.preventDefault();
+      const subject = byId('tutorSubject').value.trim();
+      const tutor = byId('tutorName').value.trim().toLowerCase();
+      const learners = byId('tutorLearners').value.split(',').map(x=>x.trim().toLowerCase()).filter(x=>x);
+      siteData.tutors.push({subject,tutor,learners}); saveSiteData(siteData); renderTutors(); byId('tutorsForm').reset();
+    });
+    byId('clearTutors').addEventListener('click', ()=>{ siteData.tutors = []; saveSiteData(siteData); renderTutors(); });
+
+    // ---------- Chat ----------
+    function renderChat(){
+      const wrap = byId('chatMessages'); wrap.innerHTML = '';
+      chat = loadChat();
+      chat.forEach(m=>{
+        const node = document.createElement('div');
+        node.className = 'mb-2';
+        node.innerHTML = `<div class="text-xs text-gray-400">${escapeHtml(m.fromName)} • ${new Date(m.ts).toLocaleString()}</div><div class="p-2 bg-gray-800 rounded">${escapeHtml(m.msg)}</div>`;
+        wrap.appendChild(node);
+      });
+      wrap.scrollTop = wrap.scrollHeight;
+    }
+    byId('sendChat').addEventListener('click', ()=>{
+      const txt = byId('chatInput').value.trim(); if(!txt) return;
+      const msg = { from: currentUser.email, fromName: currentUser.name, msg: txt, ts: Date.now() };
+      chat.push(msg); saveChat(chat); byId('chatInput').value = ''; renderChat();
+    });
+
+    // ---------- Render helpers ----------
+    function renderAssignments(){ byId('assignmentsContent').innerHTML = siteData.assignments; byId('dashboardAssignments').innerHTML = siteData.assignments; }
+    function renderNotes(){ byId('notesContent').innerHTML = siteData.notes; }
+    function renderQuestions(){ byId('questionsContent').innerHTML = siteData.questions; }
+    function renderStudy(){ byId('studyContent').innerHTML = siteData.study; byId('dashboardStudy').innerText = siteData.study; }
+    function renderWhere(){ byId('whereContent').innerText = siteData.where; }
+    function renderDeadlines(){ byId('deadlinesContent').innerText = siteData.deadlines; byId('dashboardDeadlines').innerText = siteData.deadlines; }
+    function renderMeetings(){
+      const wrap = byId('meetingsContent'); wrap.innerHTML='';
+      if(!siteData.meetings) return;
+      siteData.meetings.split('\n').map(l=>l.trim()).filter(l=>l).forEach(line=>{
+        const parts = line.split(';');
+        const title = parts[0]||'Meeting'; const dt = parts[1]||''; const link = parts[2]||'';
+        const card = document.createElement('div'); card.className='mb-3 p-3 bg-gray-800 rounded';
+        card.innerHTML = `<div class="font-semibold">${escapeHtml(title)}</div><div class="text-sm text-gray-400">${escapeHtml(dt)}</div>` + (link?`<div class="mt-2"><a class="text-accent underline" href="${escapeAttr(link)}" target="_blank">Join Google Meet</a></div>`:'');
+        wrap.appendChild(card);
+      });
+    }
+    function renderTutors(){
+      const el = byId('tutorsList'); el.innerHTML='';
+      if(!siteData.tutors.length) { el.innerHTML='<div class="text-gray-400">No tutors assigned yet.</div>'; return; }
+      siteData.tutors.forEach(t=>{
+        const div = document.createElement('div'); div.className='mb-2 p-2 bg-gray-800 rounded';
+        div.innerHTML = `<div class="font-semibold">${escapeHtml(t.subject)}</div><div class="text-sm text-gray-400">Tutor: ${escapeHtml(t.tutor)} • Learners: ${escapeHtml(t.learners.join(', '))}</div>`;
+        el.appendChild(div);
+      });
+    }
+
+    function renderAll(){
+      siteData = loadSiteData();
+      renderAssignments(); renderNotes(); renderQuestions(); renderStudy(); renderWhere(); renderDeadlines(); renderMeetings(); renderTutors();
+    }
+
+    // ---------- Small utilities ----------
+    function escapeHtml(s){ if(!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function escapeAttr(s){ if(!s) return ''; return s.replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
+
+    // ---------- Init after login ----------
+    function initAfterLogin(){
+      siteData = loadSiteData(); users = loadUsers(); chat = loadChat();
+      byId('mainContent').classList.remove('hidden');
+      byId('logoutBtn').classList.remove('hidden');
+      byId('registerPopup').classList.remove('show'); byId('loginPopup').classList.remove('show');
+      // show admin links
+      const userRecord = users.find(u=>u.email===currentUser.email);
+      const isAdmin = userRecord && userRecord.isAdmin;
+      if(isAdmin){ document.getElementById('tutorsLink').classList.remove('hidden'); byId('adminActions').classList.remove('hidden'); }
+      // Student details
+      byId('studentDetails').innerHTML = `<div class="font-semibold">${escapeHtml(currentUser.name)}</div><div class="text-sm text-gray-400">${escapeHtml(currentUser.email)}</div>` + (userRecord?`<div class="text-sm text-gray-400">${escapeHtml(userRecord.education)} • ${escapeHtml(userRecord.phone)}</div>`:'');
+      // Show dashboard by default
+      showSection('dashboard'); renderAll(); renderChat();
+      // If admin, show editor buttons across sections
+      if(isAdmin){
+        // inject per-section edit toggles
+        ['assignments','notes','questions','study','where','deadlines','meetings'].forEach(id=>{
+          const section = byId(id);
+          if(section){
+            const btn = document.createElement('button'); btn.className='mt-2 bg-accent p-1 px-2 rounded text-sm'; btn.innerText='Edit';
+            btn.addEventListener('click', ()=>{ byId('edit'+capitalize(id)).classList.remove('hidden'); if(id==='assignments') byId('editAssignmentsText').value = siteData.assignments; if(id==='notes') byId('editNotesText').value = siteData.notes; if(id==='questions') byId('editQuestionsText').value = siteData.questions; if(id==='study') byId('editStudyText').value = siteData.study; if(id==='where') byId('editWhereText').value = siteData.where; if(id==='deadlines') byId('editDeadlinesText').value = siteData.deadlines; if(id==='meetings') byId('editMeetingsText').value = siteData.meetings; });
+            section.prepend(btn);
+          }
+        });
+      }
+      // nav links available
+      document.querySelectorAll('#sidebar a[data-section]').forEach(a=> a.classList.remove('pointer-events-none'));
+    }
+
+    function capitalize(s){ return s.charAt(0).toUpperCase()+s.slice(1); }
+
+    // If user already logged in
+    if(currentUser){ initAfterLogin(); }
+    // ---------- PDF Export ----------
+byId('downloadPdf')?.addEventListener('click', () => {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF();
+
+  // Dashboard title
+  doc.setFontSize(16);
+  doc.text('UOL SHELVES — Student Dashboard', 10, 10);
+
+  doc.setFontSize(12);
+  let y = 20;
+
+  // Student info
+  doc.text('Student Name: ' + (currentUser?.name || ''), 10, y); y += 7;
+  doc.text('Email: ' + (currentUser?.email || ''), 10, y); y += 7;
+
+  const userRecord = users.find(u=>u.email===currentUser.email);
+  if(userRecord){
+    doc.text('Education: ' + (userRecord.education || ''), 10, y); y += 7;
+    doc.text('Phone: ' + (userRecord.phone || ''), 10, y); y += 10;
+  }
+
+  // Sections
+  const sections = [
+    {title: 'Assignments', content: siteData.assignments},
+    {title: 'Notes / Syllabus', content: siteData.notes},
+    {title: 'Important Questions', content: siteData.questions},
+    {title: 'What to Study Today', content: siteData.study},
+    {title: 'Where to Study', content: siteData.where},
+    {title: 'Deadlines', content: siteData.deadlines},
+    {title: 'Meetings', content: siteData.meetings.replace(/;/g,' | ')},
+  ];
+
+  sections.forEach(sec=>{
+    doc.setFontSize(14);
+    doc.text(sec.title, 10, y); y += 6;
+    doc.setFontSize(12);
+    const lines = doc.splitTextToSize(stripHtml(sec.content), 180);
+    doc.text(lines, 10, y);
+    y += lines.length * 7 + 5;
+    if(y > 270){ doc.addPage(); y = 10; }
+  });
+
+  doc.save('UOL_SHELVES_Dashboard.pdf');
+});
+
+// Helper: remove HTML tags
+function stripHtml(html){
+  const tmp = document.createElement('div');
+  tmp.innerHTML = html;
+  return tmp.textContent || tmp.innerText || '';
+}
+
+
+    // ---------- Admin HOWTO (short) ----------
+    // The admin can edit all site content from "Edit Site Data" button on the dashboard or per-section Edit buttons.
+    // Steps for admin to modify data:
+    // 1. Login as admin (username: admin, password: admin123).
+    // 2. On dashboard click "Edit Site Data" to open all blocks at once, or use per-section Edit buttons.
+    // 3. Change content (you can paste links or simple HTML for lists and anchor tags) and press Save.
+    // 4. All students will see the updated content (stored in browser's localStorage in this demo).
+
+    // ---------- Utility: seed some fake content for first run ----------
+    (function firstRunSeed(){
+      const d = JSON.parse(localStorage.getItem(STORAGE_KEY));
+      if(!d){ saveSiteData(defaultSiteData); siteData = defaultSiteData; }
+      const u = JSON.parse(localStorage.getItem(USERS_KEY));
+      if(!u){ saveUsers([{email:'admin',name:'Admin',phone:'',education:'',password:'admin123',isAdmin:true}]); }
+    })();
+
+  </script>
+</body>
+</html>
